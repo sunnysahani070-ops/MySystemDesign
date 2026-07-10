@@ -23,6 +23,10 @@ This directory contains a low-level design (LLD) implementation for a multi-elev
 
 ## Class Diagram Overview
 
+![Elevator Design UML Diagram](ElevatorDesignUML.png)
+
+### Mermaid Class Diagram
+
 ```mermaid
 classDiagram
     class Request {
