@@ -13,6 +13,7 @@ Below is an overview of the design patterns and projects in this repository. You
 | Project Name | Language | Status | Short Description | Core Design Patterns / Concepts |
 | :--- | :--- | :--- | :--- | :--- |
 | [**Elevator System Design**](./ElevatorDesignPattern) | `C++` | 🟢 Completed | A low-level design for a multi-elevator system in a building. | State Pattern, Strategy Pattern, OOD |
+| [**Enemy Spawner**](./EnemySpawner) | `C++` | 🟢 Completed | A low-level system design for spawning dynamic game enemies. | Factory Pattern, Polymorphism |
 | **Parking Lot Design** | *TBD* | 🟡 Planned | A multi-story parking lot system with multiple vehicle types and dynamic pricing. | Factory Pattern, Strategy Pattern |
 | **Splitwise / Expense Sharing App** | *TBD* | 🟡 Planned | An expense sharing application supporting split options (equal, exact, percentage). | Observer Pattern, Command Pattern |
 | **BookMyShow / Movie Booking** | *TBD* | 🟡 Planned | A movie ticket booking platform handling concurrent seat selections and payments. | Singleton, Optimistic/Pessimistic Locking |
