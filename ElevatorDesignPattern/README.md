@@ -13,11 +13,20 @@ This directory contains a low-level design (LLD) implementation for a multi-elev
     - `IdleState`: Elevator is stationary.
     - `MovingUpState`: Elevator is traversing upwards.
     - `MovingDownState`: Elevator is traversing downwards.
+- **Observer Pattern**:
+  - Decoupled notification system to push state updates (floor level, direction, moving state) to:
+    - `CabinDisplay`: Inside the elevator cabin.
+    - `FloorDisplay`: Outside on individual floors.
+- **Button System**:
+  - Extensible button components mapping physical interactions:
+    - `ExternalButton` (implemented as `UpButton` and `DownButton`) placed on building floors.
+    - `InternalButton` inside elevator cars.
 - **Strategy Pattern (Dispatching Strategy)**:
   - Supports pluggable scheduling strategies:
     - `NearestStrategy`: Selects the closest elevator to service the request.
     - `LeastLoadedStrategy`: Selects the elevator with the minimum pending load/requests.
 - **Controller & Building Layout**:
+  - `Floor`: Represents physical floors with up/down buttons.
   - `ElevatorController`: Manages state and dispatches requests.
   - `Building`: Represents the structural envelope housing floors and elevator units.
 
@@ -35,9 +44,12 @@ classDiagram
     class ExternalRequest {
         -floor: int
         -direction: Direction
+        +getFloor() int
+        +getDirection() Direction
     }
     class InternalRequest {
         -destinationFloor: int
+        +getDestinationFloor() int
     }
     Request <|-- ExternalRequest
     Request <|-- InternalRequest
@@ -59,19 +71,72 @@ classDiagram
     State <|-- MovingUpState
     State <|-- MovingDownState
 
+    class Observer {
+        <<interface>>
+        +update(Elevator* elevator)*
+    }
+    class CabinDisplay {
+        +update(Elevator* elevator)
+    }
+    class FloorDisplay {
+        +update(Elevator* elevator)
+    }
+    Observer <|-- CabinDisplay
+    Observer <|-- FloorDisplay
+
+    class Button {
+        <<interface>>
+        +press()*
+    }
+    class ExternalButton {
+        #floorNumber: int
+        #controller: ElevatorController*
+    }
+    class UpButton {
+        +press()
+    }
+    class DownButton {
+        +press()
+    }
+    class InternalButton {
+        -destinationFloor: int
+        -elevator: Elevator*
+        +press()
+    }
+    Button <|-- ExternalButton
+    Button <|-- InternalButton
+    ExternalButton <|-- UpButton
+    ExternalButton <|-- DownButton
+
+    class Floor {
+        -floorNumber: int
+        -upButton: UpButton*
+        -downButton: DownButton*
+        +getFloorNumber() int
+        +pressUpButton()
+        +pressDownButton()
+    }
+    Floor *-- UpButton
+    Floor *-- DownButton
+
     class Elevator {
         -id: int
         -currentFloor: int
         -currentState: State*
         -upRequests: set<int>
         -downRequests: set<int>
+        -observers: set<Observer*>
         +addRequest(Request* request)
         +move()
+        +attachObserver(Observer* observer)
+        +detachObserver(Observer* observer)
+        +notifyObservers()
         +getCurrentFloor() int
-        +getState() State*
+        +getCurrentState() State*
         +setState(State* state)
     }
     Elevator *-- State
+    Elevator o-- Observer
 
     class DispatchStrategy {
         <<interface>>
