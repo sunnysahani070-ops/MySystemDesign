@@ -1,40 +1,277 @@
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <set>
+#include <memory>
 #include <algorithm>
+#include <string>
+#include <climits>
 
 using namespace std;
 
-//=====================================================
+//=========================================================
 // ENUMS
-//=====================================================
+//=========================================================
 
 enum class Direction {
     UP,
-    DOWN
+    DOWN,
+    NONE
 };
 
-// Forward Declarations
-class Elevator;
-class ElevatorController;
+enum class ElevatorStatus {
+    IDLE,
+    MOVING_UP,
+    MOVING_DOWN
+};
 
-//=====================================================
-// REQUEST
-//=====================================================
+enum class DoorState {
+    OPEN,
+    CLOSED
+};
+
+//=========================================================
+// REQUEST CLASSES
+//=========================================================
 
 class Request {
+protected:
+    int floor;
+
 public:
-    virtual ~Request() = default;
+    Request(int floor) : floor(floor) {}
+
+    virtual ~Request() {}
+
+    int getFloor() const {
+        return floor;
+    }
+};
+
+class InternalRequest : public Request {
+public:
+    InternalRequest(int floor)
+        : Request(floor) {}
 };
 
 class ExternalRequest : public Request {
+
+private:
+    Direction direction;
+
+public:
+    ExternalRequest(int floor, Direction direction)
+        : Request(floor), direction(direction) {}
+
+    Direction getDirection() const {
+        return direction;
+    }
+};
+
+//=========================================================
+// OBSERVER PATTERN
+//=========================================================
+
+class Observer {
+public:
+    virtual void update(
+        int elevatorId,
+        int currentFloor,
+        ElevatorStatus status
+    ) = 0;
+
+    virtual ~Observer() {}
+};
+
+class Subject {
+
+protected:
+    vector<Observer*> observers;
+
+public:
+    void addObserver(Observer* observer) {
+        observers.push_back(observer);
+    }
+
+    void removeObserver(Observer* observer) {
+
+        observers.erase(
+            remove(
+                observers.begin(),
+                observers.end(),
+                observer
+            ),
+            observers.end()
+        );
+    }
+
+protected:
+    void notifyObservers(
+        int elevatorId,
+        int floor,
+        ElevatorStatus status
+    ) {
+
+        for (auto observer : observers) {
+            observer->update(
+                elevatorId,
+                floor,
+                status
+            );
+        }
+    }
+};
+
+//=========================================================
+// DOOR
+//=========================================================
+
+class Door {
+
+private:
+    DoorState state;
+
+public:
+    Door() {
+        state = DoorState::CLOSED;
+    }
+
+    void open() {
+
+        if (state == DoorState::OPEN)
+            return;
+
+        state = DoorState::OPEN;
+
+        cout << "Door Opened\n";
+    }
+
+    void close() {
+
+        if (state == DoorState::CLOSED)
+            return;
+
+        state = DoorState::CLOSED;
+
+        cout << "Door Closed\n";
+    }
+
+    DoorState getState() const {
+        return state;
+    }
+};
+
+//=========================================================
+// FLOOR DISPLAY
+//=========================================================
+
+class FloorDisplay : public Observer {
+
+public:
+
+    void update(
+        int elevatorId,
+        int currentFloor,
+        ElevatorStatus status
+    ) override {
+
+        cout << "[Floor Display] Elevator "
+             << elevatorId
+             << " is at Floor "
+             << currentFloor
+             << " ";
+
+        if (status == ElevatorStatus::MOVING_UP)
+            cout << "(UP)";
+
+        else if (status == ElevatorStatus::MOVING_DOWN)
+            cout << "(DOWN)";
+
+        else
+            cout << "(IDLE)";
+
+        cout << endl;
+    }
+};
+
+//=========================================================
+// ELEVATOR DISPLAY
+//=========================================================
+
+class ElevatorDisplay {
+
+private:
+    int currentFloor;
+    ElevatorStatus status;
+
+public:
+
+    ElevatorDisplay() {
+
+        currentFloor = 0;
+        status = ElevatorStatus::IDLE;
+    }
+
+    void updateDisplay(
+        int floor,
+        ElevatorStatus st
+    ) {
+
+        currentFloor = floor;
+        status = st;
+
+        cout << "[Elevator Display] Floor : "
+             << currentFloor
+             << " | ";
+
+        if (status == ElevatorStatus::MOVING_UP)
+            cout << "UP";
+
+        else if (status == ElevatorStatus::MOVING_DOWN)
+            cout << "DOWN";
+
+        else
+            cout << "IDLE";
+
+        cout << endl;
+    }
+
+    int getCurrentFloor() const {
+        return currentFloor;
+    }
+};
+
+//=========================================================
+// BUTTON CLASSES
+//=========================================================
+
+class Button {
+
+public:
+    virtual void press() = 0;
+
+    virtual ~Button() {}
+};
+
+class HallButton : public Button {
+
 private:
     int floor;
     Direction direction;
 
 public:
-    ExternalRequest(int floor, Direction direction)
-        : floor(floor), direction(direction) {}
+    HallButton(
+        int floor,
+        Direction direction
+    )
+        : floor(floor),
+          direction(direction) {}
+
+    void press() override {
+
+        cout << "Hall Button Pressed at Floor "
+             << floor << endl;
+    }
 
     int getFloor() const {
         return floor;
@@ -45,326 +282,857 @@ public:
     }
 };
 
-class InternalRequest : public Request {
+class ElevatorButton : public Button {
+
 private:
     int destinationFloor;
 
 public:
-    InternalRequest(int destinationFloor)
-        : destinationFloor(destinationFloor) {}
+    ElevatorButton(int floor)
+        : destinationFloor(floor) {}
+
+    void press() override {
+
+        cout << "Destination Selected : "
+             << destinationFloor
+             << endl;
+    }
 
     int getDestinationFloor() const {
         return destinationFloor;
     }
 };
 
-//=====================================================
-// OBSERVER PATTERN
-//=====================================================
-
-class Observer {
-public:
-    virtual void update(Elevator* elevator) = 0;
-    virtual ~Observer() = default;
-};
-
-//=====================================================
+//=========================================================
 // STATE PATTERN
-//=====================================================
+//=========================================================
 
-class State {
+class Elevator;
+
+class ElevatorState {
 public:
-    virtual void handle(Elevator* elevator) = 0;
-    virtual ~State() = default;
+    virtual ~ElevatorState() = default;
+
+    virtual void handleRequest(
+        Elevator& elevator,
+        int destinationFloor
+    ) = 0;
+
+    virtual void move(Elevator& elevator) = 0;
+
+    virtual string getStateName() const = 0;
 };
 
-class IdleState : public State {
+//=========================================================
+// SINGLETON STATE DECLARATIONS
+//=========================================================
+
+class IdleState : public ElevatorState {
 public:
-    void handle(Elevator* elevator) override;
-};
+    static IdleState& getInstance();
 
-class MovingUpState : public State {
-public:
-    void handle(Elevator* elevator) override;
-};
+    void handleRequest(
+        Elevator& elevator,
+        int destinationFloor
+    ) override;
 
-class MovingDownState : public State {
-public:
-    void handle(Elevator* elevator) override;
-};
+    void move(Elevator& elevator) override;
 
-//=====================================================
-// BUTTONS
-//=====================================================
-
-class Button {
-public:
-    virtual void press() = 0;
-    virtual ~Button() = default;
-};
-
-class ExternalButton : public Button {
-protected:
-    int floorNumber;
-    ElevatorController* controller;
-
-public:
-    ExternalButton(int floorNumber, ElevatorController* controller)
-        : floorNumber(floorNumber),
-          controller(controller) {}
-};
-
-class UpButton : public ExternalButton {
-public:
-    UpButton(int floorNumber, ElevatorController* controller)
-        : ExternalButton(floorNumber, controller) {}
-
-    void press() override {
-        // TODO
+    string getStateName() const override {
+        return "IDLE";
     }
 };
 
-class DownButton : public ExternalButton {
+class MovingUpState : public ElevatorState {
 public:
-    DownButton(int floorNumber, ElevatorController* controller)
-        : ExternalButton(floorNumber, controller) {}
+    static MovingUpState& getInstance();
 
-    void press() override {
-        // TODO
+    void handleRequest(
+        Elevator& elevator,
+        int destinationFloor
+    ) override;
+
+    void move(Elevator& elevator) override;
+
+    string getStateName() const override {
+        return "MOVING_UP";
     }
 };
 
-class InternalButton : public Button {
-private:
-    int destinationFloor;
-    Elevator* elevator;
-
+class MovingDownState : public ElevatorState {
 public:
-    InternalButton(int destinationFloor, Elevator* elevator)
-        : destinationFloor(destinationFloor),
-          elevator(elevator) {}
+    static MovingDownState& getInstance();
 
-    void press() override {
-        // TODO
+    void handleRequest(
+        Elevator& elevator,
+        int destinationFloor
+    ) override;
+
+    void move(Elevator& elevator) override;
+
+    string getStateName() const override {
+        return "MOVING_DOWN";
     }
 };
 
-//=====================================================
+class DoorOpenState : public ElevatorState {
+public:
+    static DoorOpenState& getInstance();
+
+    void handleRequest(
+        Elevator& elevator,
+        int destinationFloor
+    ) override;
+
+    void move(Elevator& elevator) override;
+
+    string getStateName() const override {
+        return "DOOR_OPEN";
+    }
+};
+
+//=========================================================
+// STATE SINGLETONS
+//=========================================================
+
+inline IdleState& IdleState::getInstance() {
+    static IdleState instance;
+    return instance;
+}
+
+inline MovingUpState& MovingUpState::getInstance() {
+    static MovingUpState instance;
+    return instance;
+}
+
+inline MovingDownState& MovingDownState::getInstance() {
+    static MovingDownState instance;
+    return instance;
+}
+
+inline DoorOpenState& DoorOpenState::getInstance() {
+    static DoorOpenState instance;
+    return instance;
+}
+
+//=========================================================
+// HELPER FUNCTIONS
+//=========================================================
+
+inline string statusToString(ElevatorStatus status) {
+
+    switch (status) {
+
+    case ElevatorStatus::IDLE:
+        return "IDLE";
+
+    case ElevatorStatus::MOVING_UP:
+        return "MOVING UP";
+
+    case ElevatorStatus::MOVING_DOWN:
+        return "MOVING DOWN";
+    }
+
+    return "UNKNOWN";
+}
+
+inline string directionToString(Direction direction) {
+
+    switch (direction) {
+
+    case Direction::UP:
+        return "UP";
+
+    case Direction::DOWN:
+        return "DOWN";
+
+    default:
+        return "NONE";
+    }
+}
+//=========================================================
 // ELEVATOR
-//=====================================================
+//=========================================================
 
-class Elevator {
+class Elevator : public Subject {
+
 private:
+
     int id;
     int currentFloor;
 
-    State* currentState;
+    ElevatorStatus status;
+
+    Door door;
+
+    ElevatorDisplay display;
+
+    ElevatorState* currentState;
 
     set<int> upRequests;
-    set<int> downRequests;
-
-    set<Observer*> observers;
+    set<int, greater<int>> downRequests;
 
 public:
+
     Elevator(int id)
         : id(id),
           currentFloor(0),
-          currentState(nullptr) {}
-
-    void addRequest(Request* request) {
-        // TODO
+          status(ElevatorStatus::IDLE),
+          currentState(&IdleState::getInstance()) {
     }
 
-    void move() {
-        // TODO
-    }
+    //-----------------------------------------------------
+    // Getters
+    //-----------------------------------------------------
 
-    void attachObserver(Observer* observer) {
-        observers.insert(observer);
-    }
-
-    void detachObserver(Observer* observer) {
-        observers.erase(observer);
-    }
-
-    void notifyObservers() {
-        for (Observer* observer : observers) {
-            observer->update(this);
-        }
+    int getId() const {
+        return id;
     }
 
     int getCurrentFloor() const {
         return currentFloor;
     }
 
-    State* getCurrentState() const {
+    ElevatorStatus getStatus() const {
+        return status;
+    }
+
+    ElevatorState* getState() {
         return currentState;
     }
 
-    void setState(State* state) {
+    Door& getDoor() {
+        return door;
+    }
+
+    //-----------------------------------------------------
+    // State Handling
+    //-----------------------------------------------------
+
+    void setState(ElevatorState* state) {
         currentState = state;
     }
-};
 
-//=====================================================
-// OBSERVERS
-//=====================================================
-
-class CabinDisplay : public Observer {
-public:
-    void update(Elevator* elevator) override {
-        cout << "Cabin Display Updated\n";
+    void setStatus(ElevatorStatus st) {
+        status = st;
     }
-};
 
-class FloorDisplay : public Observer {
-public:
-    void update(Elevator* elevator) override {
-        cout << "Floor Display Updated\n";
+    //-----------------------------------------------------
+    // Floor Movement
+    //-----------------------------------------------------
+
+    void moveOneFloorUp() {
+
+        currentFloor++;
+
+        display.updateDisplay(
+            currentFloor,
+            status
+        );
+
+        notifyObservers(
+            id,
+            currentFloor,
+            status
+        );
+
+        cout << "Elevator "
+             << id
+             << " reached Floor "
+             << currentFloor
+             << endl;
     }
-};
 
-//=====================================================
-// STATE IMPLEMENTATION
-//=====================================================
+    void moveOneFloorDown() {
 
-void IdleState::handle(Elevator* elevator) {
-    cout << "Idle State\n";
-}
+        currentFloor--;
 
-void MovingUpState::handle(Elevator* elevator) {
-    cout << "Moving Up\n";
-}
+        display.updateDisplay(
+            currentFloor,
+            status
+        );
 
-void MovingDownState::handle(Elevator* elevator) {
-    cout << "Moving Down\n";
-}
+        notifyObservers(
+            id,
+            currentFloor,
+            status
+        );
 
-//=====================================================
-// STRATEGY PATTERN
-//=====================================================
-
-class DispatchStrategy {
-public:
-    virtual Elevator* selectElevator(
-        vector<Elevator*>& elevators,
-        ExternalRequest* request) = 0;
-
-    virtual ~DispatchStrategy() = default;
-};
-
-class NearestStrategy : public DispatchStrategy {
-public:
-    Elevator* selectElevator(
-        vector<Elevator*>& elevators,
-        ExternalRequest* request) override {
-
-        cout << "Nearest Strategy\n";
-        return nullptr;
+        cout << "Elevator "
+             << id
+             << " reached Floor "
+             << currentFloor
+             << endl;
     }
-};
 
-class LeastLoadedStrategy : public DispatchStrategy {
-public:
-    Elevator* selectElevator(
-        vector<Elevator*>& elevators,
-        ExternalRequest* request) override {
+    //-----------------------------------------------------
+    // Request Handling
+    //-----------------------------------------------------
 
-        cout << "Least Loaded Strategy\n";
-        return nullptr;
-    }
-};
+    void addRequest(int destinationFloor) {
 
-//=====================================================
-// CONTROLLER
-//=====================================================
+        if (destinationFloor > currentFloor) {
 
-class ElevatorController {
-private:
-    vector<Elevator*> elevators;
-    DispatchStrategy* strategy;
+            upRequests.insert(destinationFloor);
+        }
+        else if (destinationFloor < currentFloor) {
 
-public:
-    ElevatorController(
-        vector<Elevator*> elevators,
-        DispatchStrategy* strategy)
-        : elevators(elevators),
-          strategy(strategy) {}
+            downRequests.insert(destinationFloor);
+        }
+        else {
 
-    void handleExternalRequest(ExternalRequest* request) {
+            cout << "Already at Floor "
+                 << destinationFloor
+                 << endl;
 
-        Elevator* elevator =
-            strategy->selectElevator(elevators, request);
-
-        if (elevator != nullptr) {
-            elevator->addRequest(request);
+            door.open();
+            door.close();
         }
     }
 
-    void setDispatchStrategy(DispatchStrategy* newStrategy) {
-        strategy = newStrategy;
+    bool hasUpRequests() const {
+
+        return !upRequests.empty();
+    }
+
+    bool hasDownRequests() const {
+
+        return !downRequests.empty();
+    }
+
+    int nextUpFloor() const {
+
+        return *upRequests.begin();
+    }
+
+    int nextDownFloor() const {
+
+        return *downRequests.begin();
+    }
+
+    void removeUpRequest() {
+
+        if (!upRequests.empty())
+            upRequests.erase(upRequests.begin());
+    }
+
+    void removeDownRequest() {
+
+        if (!downRequests.empty())
+            downRequests.erase(downRequests.begin());
+    }
+
+    //-----------------------------------------------------
+    // Processing
+    //-----------------------------------------------------
+
+    void process() {
+
+        currentState->move(*this);
+    }
+
+    void submitRequest(int floor) {
+
+        currentState->handleRequest(
+            *this,
+            floor
+        );
+    }
+
+    //-----------------------------------------------------
+    // Door Operations
+    //-----------------------------------------------------
+
+    void openDoor() {
+
+        door.open();
+    }
+
+    void closeDoor() {
+
+        door.close();
     }
 };
+//=========================================================
+// IDLE STATE
+//=========================================================
 
-//=====================================================
-// FLOOR
-//=====================================================
+void IdleState::handleRequest(
+    Elevator& elevator,
+    int destinationFloor
+) {
 
-class Floor {
+    elevator.addRequest(destinationFloor);
+
+    if (destinationFloor > elevator.getCurrentFloor()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_UP);
+        elevator.setState(&MovingUpState::getInstance());
+    }
+    else if (destinationFloor < elevator.getCurrentFloor()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_DOWN);
+        elevator.setState(&MovingDownState::getInstance());
+    }
+    else {
+
+        elevator.openDoor();
+        elevator.closeDoor();
+    }
+}
+
+void IdleState::move(Elevator&) {
+
+    // Elevator is idle.
+}
+
+//=========================================================
+// MOVING UP STATE
+//=========================================================
+
+void MovingUpState::handleRequest(
+    Elevator& elevator,
+    int destinationFloor
+) {
+
+    elevator.addRequest(destinationFloor);
+}
+
+void MovingUpState::move(Elevator& elevator) {
+
+    while (elevator.hasUpRequests()) {
+
+        int target = elevator.nextUpFloor();
+
+        while (elevator.getCurrentFloor() < target) {
+
+            elevator.moveOneFloorUp();
+        }
+
+        elevator.openDoor();
+        elevator.closeDoor();
+
+        elevator.removeUpRequest();
+    }
+
+    if (elevator.hasDownRequests()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_DOWN);
+        elevator.setState(&MovingDownState::getInstance());
+    }
+    else {
+
+        elevator.setStatus(ElevatorStatus::IDLE);
+        elevator.setState(&IdleState::getInstance());
+    }
+}
+
+//=========================================================
+// MOVING DOWN STATE
+//=========================================================
+
+void MovingDownState::handleRequest(
+    Elevator& elevator,
+    int destinationFloor
+) {
+
+    elevator.addRequest(destinationFloor);
+}
+
+void MovingDownState::move(Elevator& elevator) {
+
+    while (elevator.hasDownRequests()) {
+
+        int target = elevator.nextDownFloor();
+
+        while (elevator.getCurrentFloor() > target) {
+
+            elevator.moveOneFloorDown();
+        }
+
+        elevator.openDoor();
+        elevator.closeDoor();
+
+        elevator.removeDownRequest();
+    }
+
+    if (elevator.hasUpRequests()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_UP);
+        elevator.setState(&MovingUpState::getInstance());
+    }
+    else {
+
+        elevator.setStatus(ElevatorStatus::IDLE);
+        elevator.setState(&IdleState::getInstance());
+    }
+}
+
+//=========================================================
+// DOOR OPEN STATE
+//=========================================================
+
+void DoorOpenState::handleRequest(
+    Elevator& elevator,
+    int destinationFloor
+) {
+
+    elevator.addRequest(destinationFloor);
+}
+
+void DoorOpenState::move(Elevator& elevator) {
+
+    elevator.closeDoor();
+
+    if (elevator.hasUpRequests()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_UP);
+        elevator.setState(&MovingUpState::getInstance());
+    }
+    else if (elevator.hasDownRequests()) {
+
+        elevator.setStatus(ElevatorStatus::MOVING_DOWN);
+        elevator.setState(&MovingDownState::getInstance());
+    }
+    else {
+
+        elevator.setStatus(ElevatorStatus::IDLE);
+        elevator.setState(&IdleState::getInstance());
+    }
+}
+//=========================================================
+// ELEVATOR CONTROLLER
+//=========================================================
+
+class ElevatorController {
+
 private:
-    int floorNumber;
 
-    UpButton* upButton;
-    DownButton* downButton;
+    vector<shared_ptr<Elevator>> elevators;
+
 
 public:
-    Floor(int floorNumber,
-          ElevatorController* controller)
-        : floorNumber(floorNumber) {
 
-        upButton = new UpButton(floorNumber, controller);
-        downButton = new DownButton(floorNumber, controller);
+    ElevatorController(
+        int numberOfElevators
+    ) {
+
+        for(int i = 0; i < numberOfElevators; i++) {
+
+            elevators.push_back(
+                make_shared<Elevator>(i + 1)
+            );
+        }
     }
 
-    int getFloorNumber() const {
-        return floorNumber;
+
+    //-----------------------------------------------------
+    // Get Elevator
+    //-----------------------------------------------------
+
+    vector<shared_ptr<Elevator>>& getElevators() {
+
+        return elevators;
     }
 
-    void pressUpButton() {
-        upButton->press();
+
+    //-----------------------------------------------------
+    // Find Best Elevator
+    //-----------------------------------------------------
+
+    shared_ptr<Elevator> findBestElevator(
+        int floor,
+        Direction direction
+    ) {
+
+
+        shared_ptr<Elevator> best = nullptr;
+
+        int minimumDistance = INT_MAX;
+
+
+        for(auto elevator : elevators) {
+
+
+            int distance =
+                abs(
+                    elevator->getCurrentFloor()
+                    -
+                    floor
+                );
+
+
+            if(distance < minimumDistance) {
+
+                minimumDistance = distance;
+
+                best = elevator;
+            }
+        }
+
+
+        return best;
     }
 
-    void pressDownButton() {
-        downButton->press();
+
+
+    //-----------------------------------------------------
+    // External Request
+    //-----------------------------------------------------
+
+    void handleExternalRequest(
+        ExternalRequest request
+    ) {
+
+
+        auto elevator =
+            findBestElevator(
+                request.getFloor(),
+                request.getDirection()
+            );
+
+
+        if(elevator) {
+
+
+            cout
+            << "\nController assigned Elevator "
+            << elevator->getId()
+            << " for Floor "
+            << request.getFloor()
+            << endl;
+
+
+            elevator->submitRequest(
+                request.getFloor()
+            );
+        }
+
     }
+
+
+
+    //-----------------------------------------------------
+    // Internal Request
+    //-----------------------------------------------------
+
+    void handleInternalRequest(
+        int elevatorId,
+        InternalRequest request
+    ) {
+
+
+        for(auto elevator : elevators) {
+
+
+            if(elevator->getId() == elevatorId) {
+
+
+                elevator->submitRequest(
+                    request.getFloor()
+                );
+
+
+                return;
+            }
+        }
+    }
+
+
+
+    //-----------------------------------------------------
+    // Run Elevators
+    //-----------------------------------------------------
+
+    void step() {
+
+
+        for(auto elevator : elevators) {
+
+            elevator->process();
+        }
+
+    }
+
 };
-
-//=====================================================
+//=========================================================
 // BUILDING
-//=====================================================
+//=========================================================
 
 class Building {
+
 private:
-    int totalFloors;
 
-    vector<Elevator*> elevators;
+    int numberOfFloors;
 
-    ElevatorController* controller;
+    shared_ptr<ElevatorController> controller;
+
+    vector<FloorDisplay> floorDisplays;
+
 
 public:
-    Building(int totalFloors,
-             vector<Elevator*> elevators,
-             ElevatorController* controller)
-        : totalFloors(totalFloors),
-          elevators(elevators),
-          controller(controller) {}
+
+
+    Building(
+        int floors,
+        int elevators
+    )
+        : numberOfFloors(floors)
+    {
+
+
+        controller =
+            make_shared<ElevatorController>(
+                elevators
+            );
+
+
+        //-------------------------------------------------
+        // Create floor displays
+        //-------------------------------------------------
+
+        for(int i = 0; i < floors; i++) {
+
+            floorDisplays.push_back(
+                FloorDisplay()
+            );
+        }
+
+
+        //-------------------------------------------------
+        // Attach observers
+        //-------------------------------------------------
+
+        for(auto elevator :
+            controller->getElevators()) {
+
+
+            for(auto& display :
+                floorDisplays) {
+
+
+                elevator->addObserver(
+                    &display
+                );
+            }
+        }
+
+    }
+
+
+
+    //-----------------------------------------------------
+    // Get Controller
+    //-----------------------------------------------------
+
+    shared_ptr<ElevatorController>
+    getController() {
+
+        return controller;
+    }
+
+
+
+    //-----------------------------------------------------
+    // External Request
+    //-----------------------------------------------------
+
+    void requestElevator(
+        int floor,
+        Direction direction
+    ) {
+
+
+        ExternalRequest request(
+            floor,
+            direction
+        );
+
+
+        controller
+        ->handleExternalRequest(
+            request
+        );
+
+    }
+
+
+
+    //-----------------------------------------------------
+    // Select Floor Inside Elevator
+    //-----------------------------------------------------
+
+    void selectFloor(
+        int elevatorId,
+        int floor
+    ) {
+
+
+        InternalRequest request(
+            floor
+        );
+
+
+        controller
+        ->handleInternalRequest(
+            elevatorId,
+            request
+        );
+
+    }
+
+
+
+    //-----------------------------------------------------
+    // Run System
+    //-----------------------------------------------------
+
+    void run() {
+
+
+        controller->step();
+
+    }
+
 };
-
-//=====================================================
-// MAIN
-//=====================================================
-
+//=========================================================
+// MAIN FUNCTION
+//=========================================================
 int main() {
+    cout << "=========================================\n";
+    cout << "    Elevator System Initializing...      \n";
+    cout << "=========================================\n";
+
+    // 1. System Setup (10 Floors, 3 Elevators)
+    Building building(10, 3);
+    cout << "Infrastructure deployed successfully.\n\n";
+
+    cout << "=========================================\n";
+    cout << "     Executing Test Scenarios            \n";
+    cout << "=========================================\n";
+
+    // Scenario A: External Requests (Pressing hall buttons)
+    cout << "[Floor Request] Passenger on Floor 3 wants to go UP\n";
+    building.requestElevator(3, Direction::UP);
+    
+    cout << "[Floor Request] Passenger on Floor 8 wants to go DOWN\n";
+    building.requestElevator(8, Direction::DOWN);
+
+    // Tick the system once to process scheduling and initial dispatch
+    cout << "\n--- System Tick 1: Scheduling ---\n";
+    building.run(); 
+
+    // Scenario B: Internal Requests (Pressing panel buttons inside the elevator)
+    cout << "\n[Cabin Request] Passenger inside Elevator 1 selects Floor 7\n";
+    building.selectFloor(1, 7);
+
+    // Tick the system again to process movements and trigger Observer Displays
+    cout << "\n--- System Tick 2: Processing Movement ---\n";
+    building.run();
+
+    cout << "\n=========================================\n";
+    cout << "      Verification Suite Complete        \n";
+    cout << "=========================================\n";
 
     return 0;
 }
