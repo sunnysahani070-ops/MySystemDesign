@@ -18,6 +18,7 @@ Below is an overview of the design patterns and projects in this repository. You
 | **Splitwise / Expense Sharing App** | *TBD* | 🟡 Planned | An expense sharing application supporting split options (equal, exact, percentage). | Observer Pattern, Command Pattern |
 | **BookMyShow / Movie Booking** | *TBD* | 🟡 Planned | A movie ticket booking platform handling concurrent seat selections and payments. | Singleton, Optimistic/Pessimistic Locking |
 | [**Snake and Ladder Game**](./SnakeLadderGame) | `C++` | 🟢 Completed | A multiplayer Snake and Ladder board game with customizable components. | OOD, Game Loop, Strategy Pattern |
+| [**Tinder Dating App**](./TinderDesign) | `C++` | 🟢 Completed | A low-level system design for a dating application with matchmaking. | Facade, Singleton, Observer, Strategy, Factory Pattern |
 | **Distributed Cache** | *TBD* | 🟡 Planned | A thread-safe, in-memory key-value cache with pluggable eviction policies (LRU/LFU). | Doubly Linked List + Hash Map, Concurrency |
 | **Message Queue (Kafka-like)** | *TBD* | 🟡 Planned | A pub-sub messaging system supporting topics, partitions, and consumer groups. | Publisher-Subscriber Pattern, Multi-threading |
 
