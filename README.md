@@ -15,7 +15,7 @@ Below is an overview of the design patterns and projects in this repository. You
 | [**Elevator System Design**](./ElevatorDesignPattern) | `C++` | 🟢 Completed | A low-level design for a multi-elevator system in a building. | Observer Pattern, State Pattern, Strategy Pattern, OOD |
 | [**Enemy Spawner**](./EnemySpawner) | `C++` | 🟢 Completed | A low-level system design for spawning dynamic game enemies. | Factory Pattern, Polymorphism |
 | **Parking Lot Design** | *TBD* | 🟡 Planned | A multi-story parking lot system with multiple vehicle types and dynamic pricing. | Factory Pattern, Strategy Pattern |
-| **Splitwise / Expense Sharing App** | *TBD* | 🟡 Planned | An expense sharing application supporting split options (equal, exact, percentage). | Observer Pattern, Command Pattern |
+| [**Splitwise Design Pattern**](./SplitwisedDesignPattern) | `C++` | 🟢 Completed | An expense sharing application supporting split options (equal, exact, percentage) and debt simplification. | Observer, Strategy, Factory, Singleton, Facade |
 | **BookMyShow / Movie Booking** | *TBD* | 🟡 Planned | A movie ticket booking platform handling concurrent seat selections and payments. | Singleton, Optimistic/Pessimistic Locking |
 | [**Snake and Ladder Game**](./SnakeLadderGame) | `C++` | 🟢 Completed | A multiplayer Snake and Ladder board game with customizable components. | OOD, Game Loop, Strategy Pattern |
 | [**Tinder Dating App**](./TinderDesign) | `C++` | 🟢 Completed | A low-level system design for a dating application with matchmaking. | Facade, Singleton, Observer, Strategy, Factory Pattern |
