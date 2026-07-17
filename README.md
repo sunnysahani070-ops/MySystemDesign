@@ -12,6 +12,7 @@ Below is an overview of the design patterns and projects in this repository. You
 
 | Project Name | Language | Status | Short Description | Core Design Patterns / Concepts |
 | :--- | :--- | :--- | :--- | :--- |
+| [**Chess System Design**](./ChessDesignPattern) | `C++` | 🟢 Completed | A low-level chess engine design supporting standard rules, matchmaking, and in-game chat. | Strategy, Factory Method, Mediator, Singleton |
 | [**Elevator System Design**](./ElevatorDesignPattern) | `C++` | 🟢 Completed | A low-level design for a multi-elevator system in a building. | Observer Pattern, State Pattern, Strategy Pattern, OOD |
 | [**Enemy Spawner**](./EnemySpawner) | `C++` | 🟢 Completed | A low-level system design for spawning dynamic game enemies. | Factory Pattern, Polymorphism |
 | **Parking Lot Design** | *TBD* | 🟡 Planned | A multi-story parking lot system with multiple vehicle types and dynamic pricing. | Factory Pattern, Strategy Pattern |
